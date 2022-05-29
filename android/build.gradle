@@ -1,3 +1,38 @@
+import java.nio.file.Paths
+
+static def findNodeModules(baseDir) {
+  def basePath = baseDir.toPath().normalize()
+  // Node's module resolution algorithm searches up to the root directory,
+  // after which the base path will be null
+  while (basePath) {
+    def nodeModulesPath = Paths.get(basePath.toString(), "node_modules")
+    def reactNativePath = Paths.get(nodeModulesPath.toString(), "react-native")
+    if (nodeModulesPath.toFile().exists() && reactNativePath.toFile().exists()) {
+      return nodeModulesPath.toString()
+    }
+    basePath = basePath.getParent()
+  }
+  throw new GradleException("JSIDLOG: Failed to find node_modules/ path!")
+}
+
+static def findReactNativeDir(baseDir) {
+  def basePath = baseDir.toPath().normalize()
+  // Node's module resolution algorithm searches up to the root directory,
+  // after which the base path will be null
+  while (basePath) {
+    def nodeModulesPath = Paths.get(basePath.toString(), "node_modules")
+    def reactNativePath = Paths.get(nodeModulesPath.toString(), "react-native")
+    if (nodeModulesPath.toFile().exists() && reactNativePath.toFile().exists()) {
+      return reactNativePath.toString()
+    }
+    basePath = basePath.getParent()
+  }
+  throw new GradleException("JSIDLOG: Failed to find react native/ path!")
+}
+
+def nodeModules = findNodeModules(projectDir)
+def reactNativePath = findReactNativeDir(projectDir)
+
 buildscript {
     if (project == rootProject) {
         repositories {
@@ -30,6 +65,7 @@ android {
             cmake {
                 cppFlags "-O2 -frtti -fexceptions -Wall -fstack-protector-all"
                 abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+                arguments '-DANDROID_STL=c++_shared', "-DNODE_MODULES_DIR=${nodeModules}"
             }
         }
 
@@ -38,6 +74,7 @@ android {
     externalNativeBuild {
         cmake {
             path "CMakeLists.txt"
+            version "3.8.0+"
         }
     }
 
@@ -52,6 +89,12 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+    packagingOptions {
+      excludes = ["**/libc++_shared.so", "**/libfbjni.so", "**/libreactnativejni.so", "**/libjsi.so"]
+    }
+    configurations {
+      extractJNI
     }
 }
 
@@ -69,4 +112,28 @@ repositories {
 dependencies {
     //noinspection GradleDynamicVersion
     implementation "com.facebook.react:react-native:+"  // From node_modules
+    def rnAAR = fileTree(reactNativePath).matching({ it.include "**/**/*.aar" }).singleFile
+    extractJNI(files(rnAAR))
+}
+
+def extracted = false;
+task extractJNIFiles {
+  if (extracted) return
+  doLast {
+    configurations.extractJNI.files.each {
+      def file = it.absoluteFile
+
+      copy {
+        from zipTree(file)
+        into "$buildDir/$file.name"
+        include "jni/**/*"
+      }
+      extracted = true;
+    }
+  }
+}
+
+// Extract JNI files as soon as first task is added
+tasks.whenTaskAdded { task ->
+  task.dependsOn(extractJNIFiles);
 }

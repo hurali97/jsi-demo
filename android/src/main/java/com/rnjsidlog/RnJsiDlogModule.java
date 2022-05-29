@@ -1,7 +1,10 @@
 package com.rnjsidlog;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
+import com.facebook.react.bridge.JavaScriptContextHolder;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -22,20 +25,32 @@ public class RnJsiDlogModule extends ReactContextBaseJavaModule {
         return NAME;
     }
 
-    static {
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    public boolean install() {
         try {
-            // Used to load the 'native-lib' library on application startup.
-            System.loadLibrary("cpp");
-        } catch (Exception ignored) {
+        System.loadLibrary("nativeJsiDlog");
+
+        ReactApplicationContext context = getReactApplicationContext();
+        nativeInstall(
+            context.getJavaScriptContextHolder().get()
+        );
+        return true;
+        } catch (Exception exception) {
+        return false;
         }
     }
 
-    // Example method
-    // See https://reactnative.dev/docs/native-modules-android
-    @ReactMethod
-    public void multiply(int a, int b, Promise promise) {
-        promise.resolve(nativeMultiply(a, b));
+  private native void nativeInstall(long jsi);
+
+  public void installLib(JavaScriptContextHolder reactContext) {
+
+    if (reactContext.get() != 0) {
+      this.nativeInstall(
+        reactContext.get()
+      );
+    } else {
+      Log.e("SimpleJsiModule", "JSI Runtime is not available in debug mode");
     }
 
-    public static native int nativeMultiply(int a, int b);
+  }
 }
