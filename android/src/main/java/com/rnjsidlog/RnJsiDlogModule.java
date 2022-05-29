@@ -1,11 +1,7 @@
 package com.rnjsidlog;
 
-import android.util.Log;
-
 import androidx.annotation.NonNull;
 
-import com.facebook.react.bridge.JavaScriptContextHolder;
-import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -41,16 +37,4 @@ public class RnJsiDlogModule extends ReactContextBaseJavaModule {
     }
 
   private native void nativeInstall(long jsi);
-
-  public void installLib(JavaScriptContextHolder reactContext) {
-
-    if (reactContext.get() != 0) {
-      this.nativeInstall(
-        reactContext.get()
-      );
-    } else {
-      Log.e("SimpleJsiModule", "JSI Runtime is not available in debug mode");
-    }
-
-  }
 }
